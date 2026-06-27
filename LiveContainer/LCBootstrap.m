@@ -126,6 +126,11 @@ void overwriteMainCFBundle(void) {
                 mainBundleAddr = (void **)aarch64_emulate_adrp_ldr(*(pc-1), *(uint32_t *)(pc+1), (uint64_t)(pc-1));
                 break;
             }
+            uint64_t addr = aarch64_get_tbnz_jump_address(*pc, (uint64_t)pc);
+            if (addr) {
+                mainBundleAddr = (void **)aarch64_emulate_adrp_ldr(*(pc-1), *(uint32_t *)addr, (uint64_t)(pc-1));
+                break;
+            }
             ++pc;
         }
     } else {
@@ -192,6 +197,13 @@ int hook__NSGetExecutablePath_overwriteExecPath(void* dyldApiInstancePtr, char* 
         assert(mainExecutablePathPtr != 0);
     }
 
+    bool shouldUpdateLength = false;
+    if(@available(iOS 27.0, *)) {
+        if (*(size_t*)(dyldConfig + 0x28) == strlen(*mainExecutablePathPtr)) {
+            shouldUpdateLength = true;
+        }
+    }
+
     kern_return_t ret = builtin_vm_protect(mach_task_self(), (mach_vm_address_t)mainExecutablePathPtr, sizeof(mainExecutablePathPtr), false, PROT_READ | PROT_WRITE);
     if(ret != KERN_SUCCESS) {
         assert(os_tpro_is_supported());
@@ -200,7 +212,7 @@ int hook__NSGetExecutablePath_overwriteExecPath(void* dyldApiInstancePtr, char* 
     *mainExecutablePathPtr = newPath;
     
     // in iOS 27, the length is also cached, it's at +0x28
-    if(@available(iOS 27.0, *)) {
+    if(shouldUpdateLength) {
         *(size_t*)(dyldConfig + 0x28) = strlen(newPath);
     }
     

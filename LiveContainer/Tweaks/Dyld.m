@@ -281,6 +281,9 @@ bool initGuestSDKVersionInfo(void) {
         uint64_t offset = 0;
         if(@available(iOS 27.0, *)) {
             offset = LCFindSymbolOffset(dyldPath, "__ZN5dyld311sVersionMapE");
+            if (!offset) {
+                offset = LCFindSymbolOffset(dyldPath, "__ZN5dyld3L11sVersionMapE");
+            }
         } else {
             offset = LCFindSymbolOffset(dyldPath, "__ZN5dyld3L11sVersionMapE");
         }
